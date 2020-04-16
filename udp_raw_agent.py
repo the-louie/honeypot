@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
@@ -15,7 +15,7 @@
 
 import os, re, select, socket, sys, struct
 import inetutils, ip, udp # from pyip
-import pcap # from pylibpcap
+from libpcap import pcap
 
 local_ip = sys.argv[1]
 caller_uid = int(sys.argv[2])
@@ -48,13 +48,13 @@ if not dev:
 try:
 	out_sk = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_UDP)
 	out_sk.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-except socket.error, msg:
+except (socket.error, msg):
 	print('ERR Raw socket could not be created: {}'.format(msg[1]))
 	sys.exit(1)
 
 try:
 	out_sk.bind((local_ip, 0))
-except socket.error, msg:
+except (socket.error, msg):
 	print('ERR Raw socket could not be bound to {}: {}'.format(local_ip, msg[1]))
 	sys.exit(1)
 

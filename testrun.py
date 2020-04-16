@@ -12,7 +12,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-import SocketServer, sys
+import socketserver, sys
 
 def run_tcp(realport, fakeport, handler):
 	class SingleTCPHandler(SocketServer.BaseRequestHandler):

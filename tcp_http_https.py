@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
@@ -47,7 +47,7 @@ def handle_tcp_http(socket, dstport):
 					break
 				elif header.upper() == 'CONNECTION: KEEP-ALIVE':
 					keep_alive = True
-				elif header.upper().startswith('USER-AGENT: '):
+				elif header.upper().startswith(b'USER-AGENT: '):
 					user_agent = header[len('USER-AGENT: '):]
 
 			session_token = uuid.uuid4().hex

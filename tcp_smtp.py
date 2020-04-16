@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
@@ -33,7 +33,7 @@ def store_email(sender_ip, msg_id, msg_contents, msg_from, msg_to):
 		with open("logs/smtp/{}.eml".format(msg_id), "w") as emlfile:
 			emlfile.write(msg_contents)
 	except IOError as err:
-		print "store_email failed:", err
+		print("store_email failed:", err)
 
 def handle_tcp_smtp(plaintext_socket, dstport):
 	socket = TextChannel(plaintext_socket)
@@ -54,36 +54,36 @@ def handle_tcp_smtp(plaintext_socket, dstport):
 
 			if not cmd or not cmd.endswith('\n'):
 				raise Exception('Invalid request')
-			elif cmdupper.startswith('HELO'):
+			elif cmdupper.startswith(b'HELO'):
 				socket.send("250 localhost\n")
-			elif cmdupper.startswith('EHLO'):
+			elif cmdupper.startswith(b'EHLO'):
 				socket.send("250-localhost offers TWO extensions:\n250-8BITMIME\n250 STARTTLS\n")
-			elif cmdupper.startswith('STARTTLS'):
+			elif cmdupper.startswith(b'STARTTLS'):
 				if tls_started:
 					socket.send("454 TLS not available due to temporary reason\n")
 				else:
 					tls_started = True
 					socket.send("220 Go ahead\n")
 					socket = TextChannel(switchtossl(plaintext_socket))
-			elif cmdupper.startswith('QUIT'):
+			elif cmdupper.startswith(b'QUIT'):
 				socket.send("221 localhost ESMTP server closing connection\n")
 				break
-			elif cmdupper.startswith('NOOP'):
+			elif cmdupper.startswith(b'NOOP'):
 				socket.send("250 No-op Ok\n")
-			elif cmdupper.startswith('RSET'):
+			elif cmdupper.startswith(b'RSET'):
 				msg_from = ''
 				msg_to = []
 				socket.send("250 Reset Ok\n")
-			elif cmdupper.startswith('DATA'):
+			elif cmdupper.startswith(b'DATA'):
 				socket.send("354 Ok Send data ending with <CRLF>.<CRLF>\n")
 				msg_contents = receive_data(socket)
 				msg_id = uuid.uuid4().hex
 				store_email(plaintext_socket.getpeername()[0], msg_id, msg_contents, msg_from, msg_to)
 				socket.send("250 Message received: {}@localhost\n".format(msg_id))
-			elif cmdupper.startswith('MAIL FROM:') or cmdupper.startswith('SEND FROM:') or cmdupper.startswith('SOML FROM:') or cmdupper.startswith('SAML FROM:'):
+			elif cmdupper.startswith(b'MAIL FROM:') or cmdupper.startswith(b'SEND FROM:') or cmdupper.startswith(b'SOML FROM:') or cmdupper.startswith(b'SAML FROM:'):
 				msg_from = cmd[len('MAIL FROM:'):].strip()
 				socket.send("250 Sender: {} Ok\n".format(msg_from))
-			elif cmdupper.startswith('RCPT TO:'):
+			elif cmdupper.startswith(b'RCPT TO:'):
 				recipient = cmd[len('RCPT TO:'):].strip()
 				msg_to.append(recipient)
 				socket.send("250 Recipient: {} Ok\n".format(recipient))

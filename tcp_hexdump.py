@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
@@ -46,9 +46,9 @@ def handle_tcp_hexdump(socket, dstport):
 	for chars in recv_and_split_blocks(socket, length):
 		hexstr = ' '.join(["%02x" % ord(x) for x in chars])
 		printable = ''.join(["%s" % ((ord(x) <= 127 and FILTER[ord(x)]) or '.') for x in chars])
-		print colored("%04x  %-*s  %-*s" % (c, length*3, hexstr, length, printable), 'red', 'on_yellow')
+		#print colored("%04x  %-*s  %-*s" % (c, length*3, hexstr, length, printable), 'red', 'on_yellow')
 		c += len(chars)
-	print colored("%04x" % c, 'red', 'on_yellow')
+	#print colored("%04x" % c, 'red', 'on_yellow')
 
 	try:
 		print("-- TCP TRANSPORT CLOSED --")

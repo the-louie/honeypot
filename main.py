@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
@@ -13,11 +13,11 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-import datetime, os, select, socket, SocketServer, struct, subprocess, sys, threading, time, traceback
+import datetime, os, select, socket, socketserver, struct, subprocess, sys, threading, time, traceback
 from termcolor import colored
 
-import GeoIP
-geoip = GeoIP.new(GeoIP.GEOIP_MEMORY_CACHE | GeoIP.GEOIP_CHECK_CACHE)
+#import GeoIP
+#geoip = GeoIP.new(GeoIP.GEOIP_MEMORY_CACHE | GeoIP.GEOIP_CHECK_CACHE)
 
 try:
 	from config import LOCAL_IP, TCP_MAGIC_PORT, UDP_DISCARD_FROM
@@ -34,9 +34,9 @@ from tcp_http_https import handle_tcp_http, handle_tcp_https
 from tcp_httpproxy import make_tcp_httpproxy_handler
 from tcp_hexdump import handle_tcp_hexdump, handle_tcp_hexdump_ssl
 
-from udp_sip import handle_udp_sip
-from udp_netis_backdoor import handle_udp_netis_backdoor
-from udp_hexdump import handle_udp_hexdump
+#from udp_sip import handle_udp_sip
+#from udp_netis_backdoor import handle_udp_netis_backdoor
+#from udp_hexdump import handle_udp_hexdump
 
 # TCP DISPATCHER
 
@@ -80,18 +80,19 @@ def handle_tcp_default(sk, dstport):
 		pass
 
 	if data[:3] in SSL_CLIENT_HELLO_SIGNATURES:
-		print colored("Guessing this is a SSL/TLS connection, attempting to handshake.", 'red', attrs=['bold'])
+		print(colored("Guessing this is a SSL/TLS connection, attempting to handshake.", 'red', attrs=['bold']))
+
 		handle_tcp_hexdump_ssl(sk, dstport)
-	elif data.startswith("GET "):
+	elif data.startswith(b'GET '):
 		handle_tcp_http(sk, dstport)
-	elif data.startswith("CONNECT "):
+	elif data.startswith(b'CONNECT '):
 		handle_tcp_httpproxy(sk, dstport)
 	else:
 		handle_tcp_hexdump(sk, dstport)
 	sk.close()
 
 # UDP DISPATCHER
-
+""" 
 udp_handlers = {
 	5060: handle_udp_sip,
 	53413: handle_udp_netis_backdoor
@@ -103,10 +104,10 @@ def handle_udp(socket, data, srcpeername, dstport):
 		handler(socket, data, srcpeername, dstport)
 	except Exception as err:
 		print(traceback.format_exc())
-
+ """
 # TCP CONNECTION ACCEPTANCE
 
-class SingleTCPHandler(SocketServer.BaseRequestHandler):
+class SingleTCPHandler(socketserver.BaseRequestHandler):
 	def handle(self):
 		# self.request is the socket
 		try:
@@ -118,8 +119,8 @@ class SingleTCPHandler(SocketServer.BaseRequestHandler):
 
 		dstaddr, dstport = self.getoriginaldest()
 		timestr = datetime.datetime.now().strftime("%a %Y/%m/%d %H:%M:%S%z")
-		origcountry = geoip.country_name_by_addr(srcaddr)
-		print colored("[{}]: Intruder {}:{} ({}) connected to fake port {}/tcp".format(timestr, srcaddr, srcport, origcountry, dstport), 'magenta', attrs=['bold'])
+		origcountry = "" #geoip.country_name_by_addr(srcaddr)
+		print(colored("[{}]: Intruder {}:{} ({}) connected to fake port {}/tcp".format(timestr, srcaddr, srcport, origcountry, dstport), 'magenta', attrs=['bold']))
 		log_append('intruders', 'TCP', dstport, srcaddr, srcport, origcountry)
 		handle_tcp(self.request, dstport)
 
@@ -130,15 +131,15 @@ class SingleTCPHandler(SocketServer.BaseRequestHandler):
 		address = "%d.%d.%d.%d" % (a1, a2, a3, a4)
 		return address, port
 
-class SimpleServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+class SimpleServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 	daemon_threads = True
 	allow_reuse_address = True
 
 	def __init__(self, server_address, RequestHandlerClass):
-		SocketServer.TCPServer.__init__(self, server_address, RequestHandlerClass)
+		socketserver.TCPServer.__init__(self, server_address, RequestHandlerClass)
 
 # UDP PACKET HANDLING
-
+""" 
 udp_raw_agent_lock = threading.Lock()
 
 class UDP_socketobject_proxy:
@@ -155,9 +156,9 @@ class UDP_socketobject_proxy:
 
 def process_incoming_udp(data, srcaddr, srcport, dstport):
 	timestr = datetime.datetime.now().strftime("%a %Y/%m/%d %H:%M:%S%z")
-	origcountry = geoip.country_name_by_addr(srcaddr)
+	origcountry = "" #geoip.country_name_by_addr(srcaddr)
 	log_append('intruders', 'UDP', dstport, srcaddr, srcport, origcountry)
-	print colored("[{}]: Intruder {}:{} ({}) connected to fake port {}/udp".format(timestr, srcaddr, srcport, origcountry, dstport), 'magenta', attrs=['bold'])
+	#print colored("[{}]: Intruder {}:{} ({}) connected to fake port {}/udp".format(timestr, srcaddr, srcport, origcountry, dstport), 'magenta', attrs=['bold'])
 	handle_udp(UDP_socketobject_proxy(dstport), data, (srcaddr, srcport), dstport)
 
 def udp_raw_agent_dispatcher(incoming_packets, abort_callback):
@@ -174,21 +175,21 @@ def udp_raw_agent_dispatcher(incoming_packets, abort_callback):
 		data = data_hex.decode('hex') if data_hex != '-' else ''
 		threading.Thread(target=process_incoming_udp, args=[data, src_addr, int(src_port_str), int(dst_port_str)]).start()
 	abort_callback() # Tell the main thread that we are done
-
+ """
 # TCP AND UDP INITIALIZATION
 
 # Start UDP raw agent (which must be run as root)
-udp_raw_agent_command_line = [ './udp_raw_agent.py', LOCAL_IP, str(os.getuid()), str(os.getgid()) ]
+""" udp_raw_agent_command_line = [ './udp_raw_agent.py', LOCAL_IP, str(os.getuid()), str(os.getgid()) ]
 if os.getuid() != 0:
 	udp_raw_agent_command_line = ['sudo', '-k'] + udp_raw_agent_command_line
 udp_raw_agent = subprocess.Popen(udp_raw_agent_command_line, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
 firstline = udp_raw_agent.stdout.readline()
-if firstline.startswith('OK') == False:
-	if firstline.startswith('ERR '):
+if firstline.startswith(b'OK') == False:
+	if firstline.startswith(b'ERR '):
 		print(firstline[len('ERR '):].strip())
 	print("Error! UDP agent could not be started properly")
 	sys.exit(1)
-
+ """
 try:
 	try:
 		server = SimpleServer((LOCAL_IP, TCP_MAGIC_PORT), SingleTCPHandler)
@@ -198,17 +199,18 @@ try:
 
 	if server:
 		print("Started successfully, waiting for intruders...")
-		threading.Thread(target=udp_raw_agent_dispatcher, args=[udp_raw_agent.stdout, server.shutdown]).start()
+		#threading.Thread(target=udp_raw_agent_dispatcher, args=[udp_raw_agent.stdout, server.shutdown]).start()
 		server.serve_forever()
+		print("after serve_forever()")
 except KeyboardInterrupt:
 	pass
 finally:
 	try:
-		udp_raw_agent_lock.acquire()
+		""" 		udp_raw_agent_lock.acquire()
 		udp_raw_agent.stdin.close()
 		udp_raw_agent_lock.release()
-		udp_raw_agent.wait()
+		udp_raw_agent.wait() """
 	except:
 		print(traceback.format_exc())
-		udp_raw_agent.terminate()
+		""" 		udp_raw_agent.terminate() """
 	sys.exit(0)

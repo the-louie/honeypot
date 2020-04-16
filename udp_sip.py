@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
@@ -13,8 +13,8 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-import StringIO, re, testrun, threading, time, uuid
-from termcolor import colored
+import io, re, testrun, threading, time, uuid
+#from termcolor import colored
 from utils import log_append, tee_received_text, tee_sent_text
 
 USER_AGENT = 'Linphone/3.5.2 (eXosip2/3.6.0)'
@@ -61,7 +61,7 @@ def detect_sipvicious(from_value, dstport):
 	return SIPVICIOUS_NONE
 
 def handle_udp_sip(socket, data, srcpeername, dstport):
-	input_stream = StringIO.StringIO(tee_received_text(data))
+	input_stream = io.StringIO(tee_received_text(data))
 	firstline = input_stream.readline().strip()
 	rematch = re.match("([A-Z]+) ([^ ]+) ?.*", firstline)
 

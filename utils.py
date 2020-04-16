@@ -129,4 +129,4 @@ def log_append(log_name, *columns):
 		with open("logs/{}.txt".format(log_name), "a") as logfile:
 			logfile.write("{}\n".format(','.join(data)))
 	except IOError as err:
-		print "log_append failed:", err
+		print("log_append failed:", err)

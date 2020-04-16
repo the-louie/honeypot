@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
@@ -13,7 +13,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-import StringIO, testrun
+import io, testrun
 from unixshell import process_commandline
 from utils import tee_received_text, tee_sent_text, tee_received_bin, tee_sent_bin
 from termcolor import colored
@@ -47,24 +47,24 @@ def handle_udp_netis_backdoor(socket, data, srcpeername, dstport):
 	if data == '\n':
 		print("Netis backdoor scan received")
 		socket.sendto(tee_sent_bin('\n\0\0\6\0\1\0\0\0\0\320\245Login:'), srcpeername)
-	elif data.startswith('AAAAAAAAnetcore\0'):
+	elif data.startswith(b'AAAAAAAAnetcore\0'):
 		print("Netis backdoor enable command received")
 		socket.sendto(tee_sent_bin('AA\0\5ABAA\0\0\0\0Login successed!\r\n'), srcpeername) # sic
-	elif data.startswith('AA\0\0AAAA?\0'):
+	elif data.startswith(b'AA\0\0AAAA?\0'):
 		print("Netis backdoor version query received")
 		socket.sendto(tee_sent_bin('AA\0\5ABAA\0\0\1\0IGD MPT Interface daemon 1.0\0'), srcpeername)
-	elif data.startswith('AA\0\0AAAA$GetVersion\0'):
+	elif data.startswith(b'AA\0\0AAAA$GetVersion\0'):
 		print("Netis backdoor $GetVersion command received")
 		socket.sendto(tee_sent_bin('AA\0\5ABAA\0\0\0\0{}'.format(VERSION_TEXT)), srcpeername)
-	elif data.startswith('AA\0\0AAAA$Help\0'):
+	elif data.startswith(b'AA\0\0AAAA$Help\0'):
 		print("Netis backdoor $Help command received")
 		socket.sendto(tee_sent_bin('AA\0\5ABAA\0\0\1\0{}'.format(HELP_TEXT)), srcpeername)
-	elif data.startswith('AA\0\0AAAA'):
+	elif data.startswith(b'AA\0\0AAAA'):
 		print("\nNetis backdoor execute command received:")
 		command = tee_received_text(data[8:].strip())
 
 		print("")
-		outstream = StringIO.StringIO()
+		outstream = io.StringIO()
 		outstream.send = outstream.write # HACK
 		process_commandline(outstream, command)
 		output = tee_sent_text(outstream.getvalue())
