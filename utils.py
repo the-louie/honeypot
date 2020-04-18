@@ -15,13 +15,13 @@
 import datetime, select, sys, ssl, time, traceback
 from termcolor import colored
 
-def __prettyprint(text, tee_target, *oargs, **kw):
+""" def __prettyprint(text, tee_target, *oargs, **kw):
 	text = text.replace('\r\n', '\n').replace('\r','\n')
 	lines = text.split('\n')
 	for i in range(len(lines)):
 		if i != 0:
 			tee_target.write('\n')
-		tee_target.write(colored(lines[i], *oargs, **kw))
+		tee_target.write(colored(lines[i], *oargs, **kw)) """
 
 def hexdump(src, length=16):
 	FILTER = ''.join([(len(repr(chr(x))) == 3) and chr(x) or '.' for x in range(256)])
@@ -34,14 +34,14 @@ def hexdump(src, length=16):
 	res += "%04x\n" % len(src)
 	return res
 
-def tee_received_text(text, tee_target=sys.stderr, fix_incoming_endl=False):
+""" def tee_received_text(text, tee_target=sys.stderr, fix_incoming_endl=False):
 	if fix_incoming_endl:
 		text = text.replace('\r', '\n')
 	__prettyprint(text.replace('\r', ''), tee_target, 'red', 'on_yellow')
 	return text
 
 def tee_sent_text(text, tee_target=sys.stderr):
-	text = text.replace('\n', '\r\n')
+	text = text.decode().replace('\n', '\r\n')
 	__prettyprint(text, tee_target, 'blue', 'on_cyan')
 	return text
 
@@ -51,7 +51,7 @@ def tee_received_bin(data, tee_target=sys.stderr):
 
 def tee_sent_bin(data, tee_target=sys.stderr):
 	tee_sent_text(hexdump(data), tee_target)
-	return data
+	return data """
 
 class TextChannel(object):
 	def __init__(self, chan, tee_target=sys.stderr, fix_incoming_endl=False):
@@ -66,9 +66,10 @@ class TextChannel(object):
 		return self.chan(*args, **kw)
 	def recv(self, *args, **kw):
 		buff = self.chan.recv(*args, **kw)
-		return tee_received_text(buff, self.tee_target, self.fix_incoming_endl)
+		return buff.decode()
+		#return tee_received_text(buff.decode(), self.tee_target, self.fix_incoming_endl)
 	def send(self, buff):
-		self.chan.send(tee_sent_text(buff, self.tee_target))
+		self.chan.send(buff.encode())
 
 def noexceptwrap(func):
 	def wrapped(*args, **kw):
@@ -94,7 +95,6 @@ def readline(socket, echo=False, timeout=None):
 			rlist, _, _ = select.select([socket], [], [], remaining_time)
 			if len(rlist) == 0:
 				break
-
 		c = socket.recv(1)
 		if len(c) != 1:
 			break
@@ -111,6 +111,7 @@ def readline(socket, echo=False, timeout=None):
 
 	if len(to_be_echoed) != 0:
 		socket.send(to_be_echoed)
+
 	return buff
 
 def switchtossl(socket):
@@ -118,8 +119,14 @@ def switchtossl(socket):
 		res = ssl.wrap_socket(socket, "secrets/tcp_ssl.key", "secrets/tcp_ssl_cert.pem", True)
 		print("SSL handshake")
 		return res
+	except ssl.SSLError:
+		print('Warning: Client does not accept self signed certificates')
+		return None
+	except FileNotFoundError:
+		print('Info: Missing certificates "secrets/tcp_ssl.key" "secrets/tcp_ssl_cert.pem"')
+		return None
 	except Exception as err:
-		#print(traceback.format_exc())
+		print(traceback.format_exc())
 		return None
 
 def log_append(log_name, *columns):

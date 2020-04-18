@@ -25,13 +25,11 @@ def __getexpdate(future=0):
 
 def handle_tcp_http(socket, dstport):
 	socket = TextChannel(socket)
-
 	try:
 		keep_alive = True
 		while keep_alive:
 			firstline = readline(socket).strip()
 			rematch = re.match("([A-Z]+) ([^ ]+) ?.*", firstline)
-
 			if not rematch:
 				raise Exception('Unexpected request')
 
@@ -47,28 +45,26 @@ def handle_tcp_http(socket, dstport):
 					break
 				elif header.upper() == 'CONNECTION: KEEP-ALIVE':
 					keep_alive = True
-				elif header.upper().startswith(b'USER-AGENT: '):
+				elif header.upper().startswith('USER-AGENT: '):
 					user_agent = header[len('USER-AGENT: '):]
 
 			session_token = uuid.uuid4().hex
 			log_append('tcp_http_requests', socket.getpeername()[0], dstport, verb, url, user_agent, session_token)
 
-			socket.send("HTTP/1.0 200 OK\nServer: microhttpd (MontaVista/2.4, i386-uClibc)\nSet-Cookie: sessionToken={}; Expires={}\nContent-Type: text/html\nContent-Length: 38\nConnection: {}\n\nmicrohttpd on Linux 2.4, it works!\n\n".format(session_token, __getexpdate(5 * 365 * 24 * 60 * 60), "keep-alive" if keep_alive else "close"))
+			socket.send("HTTP/1.0 200 OK\nServer: microhttpd (MontaVista/2.4, i386-uClibc)\nSet-Cookie: sessionToken={}; Expires={}\nContent-Type: text/html\nContent-Length: 36\nConnection: {}\n\nmicrohttpd on Linux 2.4, it works!\n\n".format(session_token, __getexpdate(5 * 365 * 24 * 60 * 60), "keep-alive" if keep_alive else "close"))
 	except ssl.SSLError as err:
 		print("SSL error: {}".format(err.reason))
 		pass
 	except Exception as err:
-		#print(traceback.format_exc())
 		pass
 
 	try:
-		print("-- HTTP TRANSPORT CLOSED --")
-		socket.close()
+		socket.close
 	except:
 		pass
 
 def handle_tcp_https(socket, dstport):
-	plaintext_socket = switchtossl(socket)
+	plaintext_socket = switchtosl(socket)
 	if plaintext_socket:
 		handle_tcp_http(plaintext_socket, dstport)
 	else:
