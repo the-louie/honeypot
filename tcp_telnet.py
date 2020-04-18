@@ -23,7 +23,6 @@ def handle_tcp_telnet(socket, dstport):
 	try:
 		socket.send("Linux-x86/2.4\nSamsung Smart TV\n\nlocalhost login: ")
 		username = readline(socket, True).strip()
-
 		if 'root' in username:
 			ps1a = 'root@localhost:~# '
 			ps1b = 'sh-4.3# '
@@ -41,8 +40,8 @@ def handle_tcp_telnet(socket, dstport):
 		process_commandline(socket, readline(socket, True, 10).strip())
 
 		interactive_shell(socket, ps1b, 10)
-	except Exception as err:
-		#print(traceback.format_exc())
+	except Exception:
+		print(traceback.format_exc())
 		pass
 
 	try:

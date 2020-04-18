@@ -13,17 +13,24 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-import datetime, os, select, socket, socketserver, struct, subprocess, sys, threading, time, traceback
+import datetime
+import os
+import select
+import socket
+import socketserver
+import struct
+import subprocess
+import sys
+import threading
+import time
+import traceback
 from termcolor import colored
 
-#import GeoIP
-#geoip = GeoIP.new(GeoIP.GEOIP_MEMORY_CACHE | GeoIP.GEOIP_CHECK_CACHE)
-
 try:
-	from config import SERVICE, BIND_IP, PORT
+    from config import SERVICE, BIND_IP, PORT
 except ImportError:
-	print("Cannot start honeypot: No config.py found, see README.md")
-	sys.exit(1)
+    print("Cannot start honeypot: No config.py found, see README.md")
+    sys.exit(1)
 
 from utils import log_append
 
@@ -31,55 +38,101 @@ from tcp_ssh import handle_tcp_ssh
 from tcp_telnet import handle_tcp_telnet
 from tcp_smtp import handle_tcp_smtp
 from tcp_http_https import handle_tcp_http, handle_tcp_https
-from tcp_httpproxy import make_tcp_httpproxy_handler
-from tcp_hexdump import handle_tcp_hexdump, handle_tcp_hexdump_ssl
+# from tcp_httpproxy import make_tcp_httpproxy_handler
 
-service_handler = {
-	'ssh': handle_tcp_ssh,
-	'telnet': handle_tcp_telnet,
-	'smtp': handle_tcp_smtp,
-	'http': handle_tcp_http,
-	'https': handle_tcp_https,
-	#8080: handle_tcp_http,
-	#8118: handle_tcp_httpproxy
+port_to_service = {
+    22: 'ssh',
+    23: 'telnet',
+    25: 'smtp',
+    80: 'http',
+    443: 'https',
+    # 8080: 'http_proxy'
+}
+service_handlers = {
+    'ssh': {
+        'handler': handle_tcp_ssh,
+        'port': 22
+    },
+    'telnet': {
+        'handler': handle_tcp_telnet,
+        'port': 23
+    },
+    'smtp': {
+        'handler': handle_tcp_smtp,
+        'port': 25
+    },
+    'http': {
+        'handler': handle_tcp_http,
+        'port': 80
+    },
+    'https': {
+        'handler': handle_tcp_https,
+        'port': 443
+    },
+    # 'http_proxy': {
+    # 	'handler': tcp_httpproxy,
+    # 	'port': 8081
+    # }
 }
 
 
 class SingleTCPHandler(socketserver.BaseRequestHandler):
-	def handle(self):
-		try:
-			srcaddr, srcport = self.request.getpeername()
-		except:
-			# This may happen if the connection gets closed by the
-			# peer while we are still spawning the thread to handle it
-			return
+    def handle(self):
+        try:
+            (srcaddr, srcport) = self.request.getpeername()
+            (dsthost, dstport) = self.server.server_address
+        except Exception:
+            # This may happen if the connection gets closed by the
+            # peer while we are still spawning the thread to handle it
+            return
 
-		timestr = datetime.datetime.now().strftime("%a %Y/%m/%d %H:%M:%S%z")
-		print(colored("[{}]: Intruder {}:{} connected to fake port {}/tcp".format(timestr, srcaddr, srcport, PORT), 'magenta', attrs=['bold']))
-		service_handler.get(SERVICE)(self.request, PORT)
+        timestr = datetime.datetime.now().strftime("%a %Y/%m/%d %H:%M:%S%z")
+        print(colored("[{}]: Intruder {}:{} connected to {}:{}".format(
+            timestr,
+            srcaddr,
+            srcport,
+            dsthost,
+            dstport), 'magenta'))
+
+        service_name = port_to_service[dstport]
+        service_handlers.get(service_name)['handler'](self.request, dstport)
 
 
 class SimpleServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
-	daemon_threads = True
-	allow_reuse_address = True
+    daemon_threads = True
+    allow_reuse_address = True
 
-	def __init__(self, server_address, RequestHandlerClass):
-		print('Setting up service {} at :{}'.format(SERVICE, PORT))
-		socketserver.TCPServer.__init__(self, server_address, RequestHandlerClass)
+    def __init__(self, server_address, RequestHandlerClass):
+        print('Setting up service {} at {}:{}'.format(
+            port_to_service[server_address[1]],
+            server_address[0],
+            server_address[1]))
+
+        socketserver.TCPServer.__init__(
+            self,
+            server_address,
+            RequestHandlerClass)
 
 
-
-# SETUP SERVER
+# SETUP SERVERS
+servers = []
 try:
-	server = SimpleServer((BIND_IP, PORT), SingleTCPHandler)
-except:
-	server = None
-	print(traceback.format_exc())
+    for service_name in service_handlers:
+        service = service_handlers.get(service_name)
+        port = service.get('port')
+        servers.append({
+            'server': SimpleServer((BIND_IP, port), SingleTCPHandler)
+        })
+except Exception:
+    server = None
+    print(traceback.format_exc())
 
 
-if server:
-	try:
-			print("Started successfully, waiting for intruders...")
-			server.serve_forever()
-	except KeyboardInterrupt:
-		sys.exit(0)
+if len(servers) > 0:
+    try:
+        print("Started successfully, waiting for intruders...")
+        while True:
+            for server in servers:
+                server.get('server').handle_request()
+    except KeyboardInterrupt:
+        sys.exit(0)

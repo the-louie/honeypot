@@ -26,7 +26,7 @@ from termcolor import colored
 def hexdump(src, length=16):
 	FILTER = ''.join([(len(repr(chr(x))) == 3) and chr(x) or '.' for x in range(256)])
 	res = ''
-	for c in xrange(0, len(src), length):
+	for c in range(0, len(src), length):
 		chars = src[c:c+length]
 		hexstr = ' '.join(["%02x" % ord(x) for x in chars])
 		printable = ''.join(["%s" % ((ord(x) <= 127 and FILTER[ord(x)]) or '.') for x in chars])
@@ -66,7 +66,7 @@ class TextChannel(object):
 		return self.chan(*args, **kw)
 	def recv(self, *args, **kw):
 		buff = self.chan.recv(*args, **kw)
-		return buff.decode()
+		return buff
 		#return tee_received_text(buff.decode(), self.tee_target, self.fix_incoming_endl)
 	def send(self, buff):
 		self.chan.send(buff.encode())
@@ -76,14 +76,13 @@ def noexceptwrap(func):
 		try:
 			func(*args, **kw)
 		except:
-			#print(traceback.format_exc())
+			print(traceback.format_exc())
 			pass
 	return wrapped
 
 def readline(socket, echo=False, timeout=None):
 	if timeout != None:
 		timeout += time.time()
-
 	buff = ''
 	to_be_echoed = ''
 	while buff.endswith('\n') == False:
@@ -100,14 +99,14 @@ def readline(socket, echo=False, timeout=None):
 			break
 
 		if echo:
-			to_be_echoed += c
+			to_be_echoed += c.decode('utf-8', 'ignore')
 
 			# Only flush when there is not further available input data
 			rlist, _, _ = select.select([socket], [], [], 0)
 			if len(rlist) == 0:
 				socket.send(to_be_echoed)
 				to_be_echoed = ''
-		buff += c
+		buff += c.decode('utf-8', 'ignore')
 
 	if len(to_be_echoed) != 0:
 		socket.send(to_be_echoed)
@@ -125,7 +124,7 @@ def switchtossl(socket):
 	except FileNotFoundError:
 		print('Info: Missing certificates "secrets/tcp_ssl.key" "secrets/tcp_ssl_cert.pem"')
 		return None
-	except Exception as err:
+	except Exception:
 		print(traceback.format_exc())
 		return None
 

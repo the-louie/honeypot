@@ -73,7 +73,7 @@ def process_commandline(socket, commandline):
 		socket.send("sh: {}: command not found\n".format(firstword))
 
 def interactive_shell(socket, ps1, linetimeout=None):
-	for i in range(8):
+	for _ in range(8):
 		socket.send(ps1)
 		cmdline = readline(socket, True, linetimeout).strip()
 		if cmdline == 'exit':
