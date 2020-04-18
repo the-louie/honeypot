@@ -3,3 +3,4 @@ config.py
 env
 logs
 secrets
+.vscode
