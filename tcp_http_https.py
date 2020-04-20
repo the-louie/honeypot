@@ -29,7 +29,7 @@ def __getexpdate(future=0):
 	year, month, day, hh, mm, ss, wd, _, _ = time.gmtime(time.time() + future)
 	return "%s, %02d %3s %4d %02d:%02d:%02d GMT" % (weekdayname[wd], day, monthname[month], year, hh, mm, ss)
 
-def handle_tcp_http(socket, dstport, persona):
+def handle_tcp_http(socket, dsthost, dstport, persona):
 	# load body
 	index_file = persona.get('index')
 	if (os.path.exists(index_file) and os.path.isfile(index_file)):
@@ -43,9 +43,11 @@ def handle_tcp_http(socket, dstport, persona):
 		keep_alive = True
 		while keep_alive:
 			firstline = readline(socket).strip()
+			if firstline == "":
+				continue
 			rematch = re.match("([A-Z]+) ([^ ]+) ?.*", firstline)
 			if not rematch:
-				raise Exception('Unexpected request')
+				raise Exception('Unexpected request: "{}"'.format(firstline))
 
 			verb = rematch.group(1)
 			url = rematch.group(2)
@@ -81,6 +83,9 @@ def handle_tcp_http(socket, dstport, persona):
 	except ssl.SSLError as err:
 		print("SSL error: {}".format(err.reason))
 		pass
+	except ConnectionResetError:
+		print("Connection reset by peer")
+		pass
 	except Exception:
 		print(traceback.format_exc())
 		pass
@@ -90,9 +95,9 @@ def handle_tcp_http(socket, dstport, persona):
 	except:
 		pass
 
-def handle_tcp_https(socket, dstport, persona):
+def handle_tcp_https(socket, dsthost, dstport, persona):
 	plaintext_socket = switchtossl(socket)
 	if plaintext_socket:
-		handle_tcp_http(plaintext_socket, dstport, persona)
+		handle_tcp_http(plaintext_socket, dsthost, dstport, persona)
 	else:
 		socket.close()

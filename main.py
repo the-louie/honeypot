@@ -90,7 +90,7 @@ class SingleTCPHandler(socketserver.BaseRequestHandler):
         if service_handler:
             persona = PERSONAS.get(ip2persona[dsthost])
             service_persona = persona.get('services').get(port2service[dstport]['name'])
-            service_handler(self.request, dstport, service_persona)
+            service_handler(self.request, dsthost, dstport, service_persona)
 
 
 class SimpleServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
@@ -121,6 +121,7 @@ try:
     for service in service_handlers:
         port2service[service['port']] = service
 
+    threads = []
     for template_name in SERVERS:
         servers = SERVERS.get(template_name)
         persona = PERSONAS.get(template_name)
@@ -130,6 +131,12 @@ try:
                 ip2persona[bind_ip] = template_name # cache which persona belongs to an ip
                 s = threading.Thread(target=thread_service, args=(bind_ip, service_name, service,))
                 s.start()
+                threads.append(s)
+
+except KeyboardInterrupt:
+    for t in threads:
+        t.kill()
+        t.join()
 
 except Exception:
     print(traceback.format_exc())

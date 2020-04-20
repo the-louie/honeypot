@@ -13,17 +13,16 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-import paramiko, testrun, threading, traceback, sys
-from unixshell import interactive_shell, process_commandline
+import paramiko, testrun, threading, traceback, sys, os.path
+#from unixshell import interactive_shell, process_commandline
 from utils import TextChannel, log_append, noexceptwrap
 
-paramiko.util.log_to_file('logs/tcp_ssh_server_paramiko.log')
-host_key_rsa = paramiko.RSAKey(filename='secrets/tcp_ssh_rsa')
-host_key_dss = paramiko.DSSKey(filename='secrets/tcp_ssh_dss')
+#paramiko.util.log_to_file('logs/tcp_ssh_server_paramiko.log')
+default_key_rsa = paramiko.RSAKey(filename='secrets/tcp_ssh_rsa')
+default_key_dss = paramiko.DSSKey(filename='secrets/tcp_ssh_dss')
 
 class Server(paramiko.ServerInterface):
 	def __init__(self, socket_peername):
-		print('S init')
 		self.socket_peername = socket_peername
 		self.username = None
 
@@ -36,29 +35,28 @@ class Server(paramiko.ServerInterface):
 	def check_auth_password(self, username, password):
 		print("Password-based authentication: user={} pass={}".format(username, password))
 		log_append('tcp_ssh_passwords', username, password, *self.socket_peername)
-		self.username =  username
-		return paramiko.AUTH_SUCCESSFUL
-		#return paramiko.AUTH_FAILED
+		#self.username =  username
+		#return paramiko.AUTH_SUCCESSFUL
+		return paramiko.AUTH_FAILED
 
 	def check_auth_publickey(self, username, key):
-		print('Pubkey-based authentication: user={} key={}'.format(username, key.get_fingerprint().encode('hex')))
-		self.username =  username
-		return paramiko.AUTH_SUCCESSFUL
-		#return paramiko.AUTH_FAILED
+		#print('Pubkey-based authentication: user={} key={}'.format(username, key.get_fingerprint().encode('hex')))
+		#self.username =  username
+		#return paramiko.AUTH_SUCCESSFUL
+		return paramiko.AUTH_FAILED
 
 	def get_allowed_auths(self, username):
-		print('S get_allowed_auths(self, {}'.format(username))
 		return 'password,publickey'
 
 	def check_channel_shell_request(self, channel):
-		print("Shell requested")
+		# print("Shell requested")
 
-		if 'root' in self.username:
-			ps1 = '[root@localhost ~]# '
-		else:
-			ps1 = '[{}@localhost ~]$ '.format(self.username)
+		# if 'root' in self.username:
+		# 	ps1 = '[root@localhost ~]# '
+		# else:
+		# 	ps1 = '[{}@localhost ~]$ '.format(self.username)
 
-		threading.Thread(target=noexceptwrap(interactive_shell), args=[TextChannel(channel, fix_incoming_endl=True), ps1]).start()
+		# threading.Thread(target=noexceptwrap(interactive_shell), args=[TextChannel(channel, fix_incoming_endl=True), ps1]).start()
 		return True
 
 	def check_channel_pty_request(self, channel, term, width, height, pixelwidth, pixelheight, modes):
@@ -66,39 +64,47 @@ class Server(paramiko.ServerInterface):
 		return True
 
 	def check_channel_exec_request(self, channel, command):
-		print("EXEC requested: {}".format(command))
-		threading.Thread(target=noexceptwrap(process_commandline), args=[TextChannel(channel, fix_incoming_endl=True), command]).start()
+		# print("EXEC requested: {}".format(command))
+		# threading.Thread(target=noexceptwrap(process_commandline), args=[TextChannel(channel, fix_incoming_endl=True), command]).start()
 		return True
 
-def handle_tcp_ssh(socket, dstport, persona):
+def handle_tcp_ssh(socket, dsthost, dstport, persona):
 	try:
-		print('ssh 1')
+		#(dsthost, dstport) = socket.server_address
+
 		t = paramiko.Transport(socket)
-		print('ssh 2')
-		t.local_version = persona.get('banner') #'SSH-2.0-OpenSSH_6.6.1p1 Ubuntu-2ubuntu2'
+		t.local_version = persona.get('banner')
 		t.load_server_moduli() # It can be safely commented out if it does not work on your system
 
-		print('ssh 3')
-		t.add_server_key(host_key_rsa)
-		print('ssh 4')
-		t.add_server_key(host_key_dss)
-		print('ssh 5')
+		rsafile = './resources/ssh/{}_rsa'.format(dsthost)
+		if (os.path.exists(rsafile)):
+			print('SSH loading', rsafile)
+			t.add_server_key(paramiko.RSAKey(filename=rsafile))
+		else:
+			print('SSH loading default rsa, missing:', rsafile)
+			t.add_server_key(default_key_rsa)
+
+		dssfile='resources/ssh/{}_dss'.format(dsthost)
+		if (os.path.exists(dssfile)):
+			print('SSH loading', dssfile)
+			t.add_server_key(paramiko.DSSKey(filename=dssfile))
+		else:
+			print('SSH loading default dss, missing:', dssfile)
+			t.add_server_key(default_key_dss)
 
 		server = Server(socket.getpeername())
-		print('ssh 6', server)
-		t.start_server(server=server)
-		print('ssh 7')
+		try:
+			t.start_server(server=server)
+		except EOFError:
+			print("Disconnected by peer.")
 
 		t.join()
-		print('ssh 8')
 
 	except Exception:
-		print('1')
 		print(traceback.format_exc())
 		pass
 
 	try:
-		print("-- SSH TRANSPORT CLOSED --")
 		t.close()
 	except:
 		print(traceback.format_exc())

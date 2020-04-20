@@ -3,4 +3,5 @@ config.py
 env
 logs
 secrets
+resources/ssh
 .vscode
