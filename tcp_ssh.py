@@ -23,6 +23,7 @@ host_key_dss = paramiko.DSSKey(filename='secrets/tcp_ssh_dss')
 
 class Server(paramiko.ServerInterface):
 	def __init__(self, socket_peername):
+		print('S init')
 		self.socket_peername = socket_peername
 		self.username = None
 
@@ -46,6 +47,7 @@ class Server(paramiko.ServerInterface):
 		#return paramiko.AUTH_FAILED
 
 	def get_allowed_auths(self, username):
+		print('S get_allowed_auths(self, {}'.format(username))
 		return 'password,publickey'
 
 	def check_channel_shell_request(self, channel):
@@ -68,28 +70,38 @@ class Server(paramiko.ServerInterface):
 		threading.Thread(target=noexceptwrap(process_commandline), args=[TextChannel(channel, fix_incoming_endl=True), command]).start()
 		return True
 
-def handle_tcp_ssh(socket, dstport):
+def handle_tcp_ssh(socket, dstport, persona):
 	try:
+		print('ssh 1')
 		t = paramiko.Transport(socket)
-		t.local_version = 'SSH-2.0-OpenSSH_6.6.1p1 Ubuntu-2ubuntu2'
+		print('ssh 2')
+		t.local_version = persona.get('banner') #'SSH-2.0-OpenSSH_6.6.1p1 Ubuntu-2ubuntu2'
 		t.load_server_moduli() # It can be safely commented out if it does not work on your system
 
+		print('ssh 3')
 		t.add_server_key(host_key_rsa)
+		print('ssh 4')
 		t.add_server_key(host_key_dss)
+		print('ssh 5')
 
 		server = Server(socket.getpeername())
+		print('ssh 6', server)
 		t.start_server(server=server)
+		print('ssh 7')
 
 		t.join()
+		print('ssh 8')
 
-	except Exception as err:
-		#print(traceback.format_exc())
+	except Exception:
+		print('1')
+		print(traceback.format_exc())
 		pass
 
 	try:
 		print("-- SSH TRANSPORT CLOSED --")
 		t.close()
 	except:
+		print(traceback.format_exc())
 		pass
 
 	socket.close()

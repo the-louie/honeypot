@@ -28,7 +28,7 @@ def receive_data(socket):
 def store_email(sender_ip, msg_id, msg_contents, msg_from, msg_to):
 	data = [ sender_ip, datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S%z"), msg_id, msg_from, "[{}]".format(','.join(msg_to)) ]
 	try:
-		with open("logs/tcp_smtp_messages.txt".format(msg_id), "a") as logfile:
+		with open("logs/tcp_smtp_messages_{}.txt".format(msg_id), "a") as logfile:
 			logfile.write("{}\n".format(','.join(data)))
 		with open("logs/smtp/{}.eml".format(msg_id), "w") as emlfile:
 			emlfile.write(msg_contents)
@@ -54,43 +54,43 @@ def handle_tcp_smtp(plaintext_socket, dstport):
 
 			if not cmd or not cmd.endswith('\n'):
 				raise Exception('Invalid request')
-			elif cmdupper.startswith(b'HELO'):
+			elif cmdupper.startswith('HELO'):
 				socket.send("250 localhost\n")
-			elif cmdupper.startswith(b'EHLO'):
+			elif cmdupper.startswith('EHLO'):
 				socket.send("250-localhost offers TWO extensions:\n250-8BITMIME\n250 STARTTLS\n")
-			elif cmdupper.startswith(b'STARTTLS'):
+			elif cmdupper.startswith('STARTTLS'):
 				if tls_started:
 					socket.send("454 TLS not available due to temporary reason\n")
 				else:
 					tls_started = True
 					socket.send("220 Go ahead\n")
 					socket = TextChannel(switchtossl(plaintext_socket))
-			elif cmdupper.startswith(b'QUIT'):
+			elif cmdupper.startswith('QUIT'):
 				socket.send("221 localhost ESMTP server closing connection\n")
 				break
-			elif cmdupper.startswith(b'NOOP'):
+			elif cmdupper.startswith('NOOP'):
 				socket.send("250 No-op Ok\n")
-			elif cmdupper.startswith(b'RSET'):
+			elif cmdupper.startswith('RSET'):
 				msg_from = ''
 				msg_to = []
 				socket.send("250 Reset Ok\n")
-			elif cmdupper.startswith(b'DATA'):
+			elif cmdupper.startswith('DATA'):
 				socket.send("354 Ok Send data ending with <CRLF>.<CRLF>\n")
 				msg_contents = receive_data(socket)
 				msg_id = uuid.uuid4().hex
 				store_email(plaintext_socket.getpeername()[0], msg_id, msg_contents, msg_from, msg_to)
 				socket.send("250 Message received: {}@localhost\n".format(msg_id))
-			elif cmdupper.startswith(b'MAIL FROM:') or cmdupper.startswith(b'SEND FROM:') or cmdupper.startswith(b'SOML FROM:') or cmdupper.startswith(b'SAML FROM:'):
+			elif cmdupper.startswith('MAIL FROM:') or cmdupper.startswith('SEND FROM:') or cmdupper.startswith('SOML FROM:') or cmdupper.startswith('SAML FROM:'):
 				msg_from = cmd[len('MAIL FROM:'):].strip()
 				socket.send("250 Sender: {} Ok\n".format(msg_from))
-			elif cmdupper.startswith(b'RCPT TO:'):
+			elif cmdupper.startswith('RCPT TO:'):
 				recipient = cmd[len('RCPT TO:'):].strip()
 				msg_to.append(recipient)
 				socket.send("250 Recipient: {} Ok\n".format(recipient))
 			else:
 				socket.send("502 Command not implemented\n")
 	except Exception as err:
-		#print(traceback.format_exc())
+		print(traceback.format_exc())
 		pass
 
 	try:

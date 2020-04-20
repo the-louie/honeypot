@@ -34,29 +34,9 @@ def hexdump(src, length=16):
 	res += "%04x\n" % len(src)
 	return res
 
-""" def tee_received_text(text, tee_target=sys.stderr, fix_incoming_endl=False):
-	if fix_incoming_endl:
-		text = text.replace('\r', '\n')
-	__prettyprint(text.replace('\r', ''), tee_target, 'red', 'on_yellow')
-	return text
-
-def tee_sent_text(text, tee_target=sys.stderr):
-	text = text.decode().replace('\n', '\r\n')
-	__prettyprint(text, tee_target, 'blue', 'on_cyan')
-	return text
-
-def tee_received_bin(data, tee_target=sys.stderr):
-	tee_received_text(hexdump(data), tee_target)
-	return data
-
-def tee_sent_bin(data, tee_target=sys.stderr):
-	tee_sent_text(hexdump(data), tee_target)
-	return data """
-
 class TextChannel(object):
 	def __init__(self, chan, tee_target=sys.stderr, fix_incoming_endl=False):
 		self.chan = chan
-		self.tee_target = tee_target
 		self.fix_incoming_endl = fix_incoming_endl
 	def __get__(self, obj, type=None):
 		return self.__class__(self.chan.__get__(obj, type))
@@ -65,9 +45,7 @@ class TextChannel(object):
 	def __call__(self, *args, **kw):
 		return self.chan(*args, **kw)
 	def recv(self, *args, **kw):
-		buff = self.chan.recv(*args, **kw)
-		return buff
-		#return tee_received_text(buff.decode(), self.tee_target, self.fix_incoming_endl)
+		return self.chan.recv(*args, **kw)
 	def send(self, buff):
 		self.chan.send(buff.encode())
 
@@ -116,7 +94,6 @@ def readline(socket, echo=False, timeout=None):
 def switchtossl(socket):
 	try:
 		res = ssl.wrap_socket(socket, "secrets/tcp_ssl.key", "secrets/tcp_ssl_cert.pem", True)
-		print("SSL handshake")
 		return res
 	except ssl.SSLError:
 		print('Warning: Client does not accept self signed certificates')

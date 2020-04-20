@@ -27,7 +27,7 @@ import traceback
 from termcolor import colored
 
 try:
-    from config import SERVICE, BIND_IP, PORT
+    from config import SERVERS, PERSONAS
 except ImportError:
     print("Cannot start honeypot: No config.py found, see README.md")
     sys.exit(1)
@@ -38,34 +38,26 @@ from tcp_ssh import handle_tcp_ssh
 from tcp_telnet import handle_tcp_telnet
 from tcp_smtp import handle_tcp_smtp
 from tcp_http_https import handle_tcp_http, handle_tcp_https
-# from tcp_httpproxy import make_tcp_httpproxy_handler
 
-port_to_service = {
-    22: 'ssh',
-    23: 'telnet',
-    25: 'smtp',
-    80: 'http',
-    443: 'https',
-    # 8080: 'http_proxy'
-}
-service_handlers = {
-    'ssh': {
+service_handlers = [
+    {
+        'name': 'ssh',
         'handler': handle_tcp_ssh,
         'port': 22
-    },
-    'telnet': {
+    }, {
+        'name': 'telnet',
         'handler': handle_tcp_telnet,
         'port': 23
-    },
-    'smtp': {
+    }, {
+        'name': 'smtp',
         'handler': handle_tcp_smtp,
         'port': 25
-    },
-    'http': {
+    }, {
+        'name': 'http',
         'handler': handle_tcp_http,
         'port': 80
-    },
-    'https': {
+    }, {
+        'name': 'https',
         'handler': handle_tcp_https,
         'port': 443
     },
@@ -73,7 +65,7 @@ service_handlers = {
     # 	'handler': tcp_httpproxy,
     # 	'port': 8081
     # }
-}
+]
 
 
 class SingleTCPHandler(socketserver.BaseRequestHandler):
@@ -87,52 +79,57 @@ class SingleTCPHandler(socketserver.BaseRequestHandler):
             return
 
         timestr = datetime.datetime.now().strftime("%a %Y/%m/%d %H:%M:%S%z")
-        print(colored("[{}]: Intruder {}:{} connected to {}:{}".format(
+        print(colored("[{}]: {}:{} connected to {}:{}".format(
             timestr,
             srcaddr,
             srcport,
             dsthost,
             dstport), 'magenta'))
 
-        service_name = port_to_service[dstport]
-        service_handlers.get(service_name)['handler'](self.request, dstport)
+        service_handler = port2service[dstport]['handler']
+        if service_handler:
+            persona = PERSONAS.get(ip2persona[dsthost])
+            service_persona = persona.get('services').get(port2service[dstport]['name'])
+            service_handler(self.request, dstport, service_persona)
 
 
 class SimpleServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     daemon_threads = True
     allow_reuse_address = True
 
-    def __init__(self, server_address, RequestHandlerClass):
-        print('Setting up service {} at {}:{}'.format(
-            port_to_service[server_address[1]],
-            server_address[0],
-            server_address[1]))
+    def __init__(self, bind_ip, bind_port, service_name, RequestHandlerClass):
+        print('Setting up {} {} at {}:{}'.format(
+            ip2persona[bind_ip],
+            service_name,
+            bind_ip,
+            bind_port))
 
         socketserver.TCPServer.__init__(
             self,
-            server_address,
+            (bind_ip, bind_port),
             RequestHandlerClass)
 
+def thread_service(bind_ip, service_name, service):
+    server = SimpleServer(bind_ip, service['port'], service_name, SingleTCPHandler)
+    server.serve_forever()
 
-# SETUP SERVERS
-servers = []
+# Spin up servers
 try:
-    for service_name in service_handlers:
-        service = service_handlers.get(service_name)
-        port = service.get('port')
-        servers.append({
-            'server': SimpleServer((BIND_IP, port), SingleTCPHandler)
-        })
+    # generate lookup tables
+    ip2persona = {}
+    port2service = {}
+    for service in service_handlers:
+        port2service[service['port']] = service
+
+    for template_name in SERVERS:
+        servers = SERVERS.get(template_name)
+        persona = PERSONAS.get(template_name)
+        for service_name in persona.get('services', []):
+            service = persona.get('services').get(service_name)
+            for bind_ip in servers:
+                ip2persona[bind_ip] = template_name # cache which persona belongs to an ip
+                s = threading.Thread(target=thread_service, args=(bind_ip, service_name, service,))
+                s.start()
+
 except Exception:
-    server = None
     print(traceback.format_exc())
-
-
-if len(servers) > 0:
-    try:
-        print("Started successfully, waiting for intruders...")
-        while True:
-            for server in servers:
-                server.get('server').handle_request()
-    except KeyboardInterrupt:
-        sys.exit(0)
