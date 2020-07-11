@@ -1,0 +1,26 @@
+TODO:
+
+Test each service
+    x   ssh
+    x   telnet
+    x   smtp
+    x   http
+    x   https
+
+Add http proxy
+
+Create 5 personas
+    Ubuntu 18       ssh, www
+    Debian 9        ssh, www
+    Windows server  smtp, www
+    Freebsd 12      ssh
+    OpenBSD ??      ssh, www
+    IoT device      www
+
+Add fake services
+    * VMWare        www
+    * Grafana       www
+    * IRC BNC       6661
+
+No need to forward dsthost and dstport to handling functions since it's
+part of self.request
