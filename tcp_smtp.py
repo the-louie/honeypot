@@ -35,7 +35,7 @@ def store_email(sender_ip, msg_id, msg_contents, msg_from, msg_to):
 	except IOError as err:
 		print("store_email failed:", err)
 
-def handle_tcp_smtp(plaintext_socket, dstport):
+def handle_tcp_smtp(plaintext_socket, dsthost, dstport, persona):
 	socket = TextChannel(plaintext_socket)
 	tls_started = False
 	ctr = 0.5

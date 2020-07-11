@@ -98,11 +98,7 @@ class SimpleServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     allow_reuse_address = True
 
     def __init__(self, bind_ip, bind_port, service_name, RequestHandlerClass):
-        print('Setting up {} {} at {}:{}'.format(
-            ip2persona[bind_ip],
-            service_name,
-            bind_ip,
-            bind_port))
+
 
         socketserver.TCPServer.__init__(
             self,
@@ -110,8 +106,21 @@ class SimpleServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
             RequestHandlerClass)
 
 def thread_service(bind_ip, service_name, service):
-    server = SimpleServer(bind_ip, service['port'], service_name, SingleTCPHandler)
-    server.serve_forever()
+    try:
+        server = SimpleServer(bind_ip, service['port'], service_name, SingleTCPHandler)
+        print('Setting up {} {} at {}:{}'.format(
+            ip2persona[bind_ip],
+            service_name,
+            bind_ip,
+            service['port']))
+
+        server.serve_forever()
+    except OSError:
+        print('Exception setting up {} {} at {}:{}'.format(
+            ip2persona[bind_ip],
+            service_name,
+            bind_ip,
+            service['port']))
 
 # Spin up servers
 try:

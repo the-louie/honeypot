@@ -95,6 +95,10 @@ def handle_tcp_ssh(socket, dsthost, dstport, persona):
 		server = Server(socket.getpeername())
 		try:
 			t.start_server(server=server)
+		except socket.timeout:
+			print('Timeout')
+		except paramiko.ssh_exception.SSHException as err:
+			print('SSHException: ', err)
 		except EOFError:
 			print("Disconnected by peer.")
 
@@ -107,7 +111,7 @@ def handle_tcp_ssh(socket, dsthost, dstport, persona):
 	try:
 		t.close()
 	except:
-		print(traceback.format_exc())
+		print('When closing socket', traceback.format_exc())
 		pass
 
 	socket.close()
